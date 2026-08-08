@@ -29,6 +29,7 @@ After uploading an X-ray, the system displays the predicted class, confidence sc
 
 ---
 
+
 ### 🔥 Grad-CAM Visualization
 
 Grad-CAM highlights the regions of the X-ray that contributed to the CNN's prediction.
