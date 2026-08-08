@@ -1,12 +1,56 @@
+
+
 # 🩺 AI Pneumonia Detection System
 
 An AI-assisted web application that analyzes chest X-ray images using a Convolutional Neural Network (CNN) to classify them as **Normal** or **Pneumonia**.
 
-The system also generates **Grad-CAM visualizations**, produces downloadable **PDF diagnostic reports**, and maintains a **patient history database** with dashboard statistics.
+The system also generates **Grad-CAM visualizations**, produces downloadable **PDF reports**, and maintains a **patient history database** with dashboard statistics.
 
 > ⚠️ **Disclaimer:** This project is intended for educational and research purposes. It is not a medical diagnostic device and should not replace evaluation by a qualified healthcare professional.
 
 ---
+
+## 📸 Application Preview
+
+### 🏠 Home Page
+
+The home page allows the user to enter patient information and upload a chest X-ray for analysis.
+
+![Home Page](static/images/home.png)
+
+---
+
+### 🧠 AI Prediction & Grad-CAM
+
+After uploading an X-ray, the system displays the predicted class, confidence score, original X-ray, Grad-CAM heatmap, and attention overlay.
+
+![Prediction Result](static/images/result.png)
+
+---
+
+### 🔥 Grad-CAM Visualization
+
+Grad-CAM highlights the regions of the X-ray that contributed to the CNN's prediction.
+
+![Grad-CAM Visualization](static/images/gradcam.png)
+
+---
+
+### 📋 Patient History
+
+The patient history page stores previous analyses and allows users to search, view, and delete reports.
+
+![Patient History](static/images/history.png)
+
+---
+
+### 📊 Dashboard
+
+The dashboard provides an overview of the stored analyses, including total reports, Normal cases, Pneumonia cases, average confidence, and prediction distribution.
+
+![Dashboard](static/images/dashboard.png)
+
+-----
 
 ## 📌 Project Overview
 
