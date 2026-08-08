@@ -8,8 +8,8 @@ The system also generates **Grad-CAM visualizations**, produces downloadable **P
 
 > ⚠️ **Disclaimer:** This project is intended for educational and research purposes. It is not a medical diagnostic device and should not replace evaluation by a qualified healthcare professional.
 
----
 
+---
 
 ## 📸 Application Preview
 
