@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>AI Pneumonia Detection Report</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI",sans-serif;
+}
+
+body{
+
+    background:
+    radial-gradient(circle at top left,#dbeafe 0%,transparent 40%),
+    radial-gradient(circle at bottom right,#bfdbfe 0%,transparent 35%),
+    linear-gradient(135deg,#eef4ff,#f8fbff);
+
+    padding:40px;
+
+}
+
+.container{
+
+    max-width:1300px;
+
+    margin:auto;
+
+}
+
+.title{
+
+    text-align:center;
+
+    color:#1e3a8a;
+
+    margin-bottom:35px;
+
+    font-size:40px;
+
+}
+
+.patient-card{
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:30px;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.12);
+
+    margin-bottom:30px;
+
+}
+
+.patient-card h2{
+
+    color:#1e3a8a;
+
+    margin-bottom:20px;
+
+}
+
+.info{
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+
+    gap:15px;
+
+    font-size:17px;
+
+}
+
+.prediction{
+
+    margin-top:30px;
+
+    background:#f8fbff;
+
+    border-radius:15px;
+
+    padding:25px;
+
+    text-align:center;
+
+}
+
+.prediction h2{
+
+    color:#1e3a8a;
+
+    margin-bottom:15px;
+
+}
+
+.badge{
+
+    display:inline-block;
+
+    padding:12px 28px;
+
+    border-radius:40px;
+
+    color:white;
+
+    font-size:20px;
+
+    font-weight:bold;
+
+}
+
+.normal{
+
+    background:#16a34a;
+
+}
+
+.pneumonia{
+
+    background:#dc2626;
+
+}
+
+.progress{
+
+    width:80%;
+
+    max-width:500px;
+
+    margin:20px auto;
+
+    background:#dbeafe;
+
+    height:24px;
+
+    border-radius:30px;
+
+    overflow:hidden;
+
+}
+
+.progress-bar{
+
+    height:100%;
+
+    background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);
+
+    color:white;
+
+    font-weight:bold;
+
+    line-height:24px;
+
+    transition:width .8s ease;
+
+}
+
+.images{
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+
+    gap:25px;
+
+    margin-top:30px;
+
+}
+
+.card{
+
+    background:white;
+
+    border-radius:18px;
+
+    padding:20px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+
+    text-align:center;
+
+}
+
+.card h3{
+
+    color:#1e3a8a;
+
+    margin-bottom:15px;
+
+}
+
+.card img{
+
+    width:100%;
+
+    border-radius:12px;
+
+}
+
+.analysis-card{
+
+    margin-top:30px;
+
+    background:white;
+
+    border-radius:18px;
+
+    padding:25px;
+
+    box-shadow:0 8px 20px rgba(0,0,0,.12);
+
+}
+
+.analysis-card h3{
+
+    color:#1e3a8a;
+
+    margin-bottom:15px;
+
+}
+
+.analysis-card p{
+
+    line-height:1.7;
+
+}
+
+.analysis-card ul{
+
+    padding-left:25px;
+
+    line-height:2;
+
+}
+
+.buttons{
+
+    margin-top:40px;
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:20px;
+
+    flex-wrap:wrap;
+
+}
+
+.btn{
+
+    text-decoration:none;
+
+    color:white;
+
+    padding:15px 28px;
+
+    border-radius:10px;
+
+    font-size:17px;
+
+    transition:.3s;
+
+}
+
+.download{
+
+    background:#16a34a;
+
+}
+
+.download:hover{
+
+    background:#15803d;
+
+    transform:translateY(-3px);
+
+}
+
+.home{
+
+    background:#2563eb;
+
+}
+
+.home:hover{
+
+    background:#1d4ed8;
+
+    transform:translateY(-3px);
+
+}
+
+.footer{
+
+    margin-top:50px;
+
+    text-align:center;
+
+    color:#666;
+
+    font-size:14px;
+
+}
+
+@media(max-width:768px){
+
+    body{
+
+        padding:20px;
+
+    }
+
+    .title{
+
+        font-size:30px;
+
+    }
+
+    .progress{
+
+        width:100%;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1 class="title">
+🩺 AI Pneumonia Detection Report
+</h1>
+
+<div class="patient-card">
+
+<h2>Patient Information</h2>
+
+<div class="info">
+
+<p><b>Patient Name:</b> {{ patient_name }}</p>
+
+<p><b>Patient ID:</b> {{ patient_id }}</p>
+
+<p><b>Age:</b> {{ age }}</p>
+
+<p><b>Gender:</b> {{ gender }}</p>
+
+<p><b>Doctor:</b> {{ doctor_name if doctor_name else "-" }}</p>
+
+<p><b>Hospital:</b> {{ hospital if hospital else "-" }}</p>
+
+</div>
+
+<div class="prediction">
+
+<h2>AI Prediction</h2>
+
+{% if prediction|lower == "normal" %}
+
+<div class="badge normal">
+🟢 NORMAL
+</div>
+
+{% else %}
+
+<div class="badge pneumonia">
+🔴 PNEUMONIA
+</div>
+
+{% endif %}
+
+<p style="margin-top:25px;font-size:20px;">
+
+<b>Confidence :</b>
+
+{{ confidence }}%
+
+</p>
+
+<div class="progress">
+
+<div
+class="progress-bar"
+style="width:{{ confidence }}%;">
+
+{{ confidence }}%
+
+</div>
+
+</div>
+
+{% if confidence >= 90 %}
+
+<p style="color:#16a34a;font-weight:bold;font-size:18px;">
+Very High Confidence
+</p>
+
+{% elif confidence >= 75 %}
+
+<p style="color:#ca8a04;font-weight:bold;font-size:18px;">
+High Confidence
+</p>
+
+{% else %}
+
+<p style="color:#dc2626;font-weight:bold;font-size:18px;">
+Low Confidence
+</p>
+
+{% endif %}
+
+</div>
+
+</div>
+
+<div class="images">
+
+<div class="card">
+
+<h3>Original Chest X-ray</h3>
+
+<img src="/{{ original }}">
+
+</div>
+
+<div class="card">
+
+<h3>Grad-CAM Heatmap</h3>
+
+<img src="/{{ heatmap }}">
+
+</div>
+
+<div class="card">
+
+<h3>AI Attention Overlay</h3>
+
+<img src="/{{ overlay }}">
+
+</div>
+
+</div>
+
+<div class="analysis-card">
+
+<h3>🧠 AI Interpretation</h3>
+
+{% if prediction|lower == "normal" %}
+
+<p>
+
+The uploaded chest X-ray does not demonstrate significant radiological
+features suggestive of pneumonia according to the trained Convolutional
+Neural Network (CNN). The Grad-CAM visualization indicates that the
+model focused on relevant lung regions while reaching its decision.
+
+</p>
+
+{% else %}
+
+<p>
+
+The CNN detected radiological patterns suggestive of pneumonia. The
+Grad-CAM visualization highlights the lung regions that contributed
+most strongly to the prediction. Clinical examination and further
+diagnostic evaluation are recommended.
+
+</p>
+
+{% endif %}
+
+</div>
+
+<div class="analysis-card">
+
+<h3>💡 Clinical Recommendation</h3>
+
+{% if prediction|lower == "normal" %}
+
+<ul>
+
+<li>No obvious evidence of pneumonia detected.</li>
+
+<li>Continue monitoring if respiratory symptoms persist.</li>
+
+<li>Consult a physician if symptoms worsen.</li>
+
+<li>Repeat imaging only if clinically advised.</li>
+
+</ul>
+
+{% else %}
+
+<ul>
+
+<li>Consult a qualified physician or pulmonologist.</li>
+
+<li>Correlate with symptoms and laboratory investigations.</li>
+
+<li>Monitor oxygen saturation if clinically indicated.</li>
+
+<li>Follow the prescribed treatment plan.</li>
+
+</ul>
+
+{% endif %}
+
+</div>
+
+<div class="buttons">
+
+<a class="btn download"
+   href="{{ url_for('download_report', filename=report) }}">
+
+📄 Download PDF Report
+
+</a>
+
+<a class="btn home" href="/">
+
+🔄 Analyze Another X-ray
+
+</a>
+
+</div>
+
+<div class="footer">
+
+AI Pneumonia Detection System • CNN + Grad-CAM • This report is AI-assisted and should not replace professional medical diagnosis.
+
+</div>
+
+</div>
+
+</body>
+
+</html>

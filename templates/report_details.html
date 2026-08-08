@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Patient Report</title>
+
+<style>
+
+body{
+
+font-family:Segoe UI;
+
+background:#eef4ff;
+
+padding:40px;
+
+}
+
+.container{
+
+max-width:1200px;
+
+margin:auto;
+
+}
+
+.card{
+
+background:white;
+
+padding:30px;
+
+border-radius:15px;
+
+box-shadow:0 8px 20px rgba(0,0,0,.12);
+
+}
+
+.images{
+
+display:grid;
+
+grid-template-columns:repeat(3,1fr);
+
+gap:20px;
+
+margin-top:30px;
+
+}
+
+.images img{
+
+width:100%;
+
+border-radius:10px;
+
+}
+
+.btn{
+
+display:inline-block;
+
+margin-top:25px;
+
+padding:12px 22px;
+
+background:#2563eb;
+
+color:white;
+
+text-decoration:none;
+
+border-radius:8px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+
+<h1>Patient Report</h1>
+
+<hr><br>
+
+<p><b>Patient Name:</b> {{ report.patient_name }}</p>
+
+<p><b>Patient ID:</b> {{ report.patient_id }}</p>
+
+<p><b>Age:</b> {{ report.age }}</p>
+
+<p><b>Gender:</b> {{ report.gender }}</p>
+
+<p><b>Doctor:</b> {{ report.doctor_name }}</p>
+
+<p><b>Hospital:</b> {{ report.hospital }}</p>
+
+<br>
+
+<h2>Prediction</h2>
+
+<p>
+
+<b>{{ report.prediction }}</b>
+
+({{ report.confidence }}%)
+
+</p>
+
+<div class="images">
+
+<div>
+
+<h3>Original</h3>
+
+<img src="/{{ report.original_image }}">
+
+</div>
+
+<div>
+
+<h3>Heatmap</h3>
+
+<img src="/{{ report.heatmap_image }}">
+
+</div>
+
+<div>
+
+<h3>Overlay</h3>
+
+<img src="/{{ report.overlay_image }}">
+
+</div>
+
+</div>
+
+<a
+
+class="btn"
+
+href="/{{ report.report_path }}">
+
+Download PDF
+
+</a>
+
+<br><br>
+
+<a
+
+class="btn"
+
+href="/history">
+
+⬅ Back
+
+</a>
+
+</div>
+
+</div>
+
+</body>
+
+</html>

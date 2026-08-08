@@ -1,0 +1,11 @@
+reports/
+    .gitkeep
+
+static/uploads/
+    .gitkeep
+
+static/heatmaps/
+    .gitkeep
+
+static/overlays/
+    .gitkeep

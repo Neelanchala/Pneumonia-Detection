@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database
+patients.db
+
+# Generated reports
+reports/*.pdf
+
+# Uploaded images
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Generated Grad-CAM images
+static/heatmaps/*
+!static/heatmaps/.gitkeep
+
+# Generated overlays
+static/overlays/*
+!static/overlays/.gitkeep
+
+# TensorFlow / ML logs
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# Model files
+*.h5
+*.keras
+*.weights.h5
