@@ -10,6 +10,7 @@ The system also generates **Grad-CAM visualizations**, produces downloadable **P
 
 ---
 
+
 ## 📸 Application Preview
 
 ### 🏠 Home Page
@@ -27,6 +28,7 @@ After uploading an X-ray, the system displays the predicted class, confidence sc
 ![Prediction Result](static/images/result.png)
 
 ---
+
 
 ### 🔥 Grad-CAM Visualization
 
