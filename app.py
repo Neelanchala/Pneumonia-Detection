@@ -292,12 +292,11 @@ def dashboard():
 # ERROR HANDLER
 # ============================================================
 
-@app.errorhandler(Exception)
-def handle_error(e):
-
+@app.errorhandler(500)
+def handle_500(e):
+    import traceback
     traceback.print_exc()
-
-    return f"ERROR: {str(e)}", 500
+    return "Internal Server Error", 500
 
 
 # ============================================================
