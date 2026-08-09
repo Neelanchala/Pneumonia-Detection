@@ -3,126 +3,240 @@ import numpy as np
 import cv2
 import os
 
-# -------------------------------------------------
-# Load model once
-# -------------------------------------------------
+
+# =========================================================
+# Load Model
+# =========================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "my_cnn_best.keras")
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "my_cnn_best.keras"
+)
+
+print("Loading model for Grad-CAM...")
 
 model = tf.keras.models.load_model(MODEL_PATH)
 
-LAST_CONV_LAYER = "conv2d_1"
+print("Grad-CAM model loaded.")
 
 
-# -------------------------------------------------
-# Generate Grad-CAM
-# -------------------------------------------------
+# =========================================================
+# MobileNetV2 Layer
+# =========================================================
 
-def generate_gradcam(image_path,
-                     heatmap_save_path,
-                     overlay_save_path):
+MOBILENET_LAYER = "mobilenetv2_1.00_224"
 
-    # ------------------------------
+LAST_CONV_LAYER = "block_16_project"
+
+mobilenet = model.get_layer(MOBILENET_LAYER)
+
+target_layer = mobilenet.get_layer(LAST_CONV_LAYER)
+
+
+# =========================================================
+# Grad-CAM
+# =========================================================
+
+def generate_gradcam(
+    image_path,
+    heatmap_save_path,
+    overlay_save_path
+):
+
+    # -----------------------------------------------------
     # Load image
-    # ------------------------------
+    # -----------------------------------------------------
 
     image = tf.keras.utils.load_img(
         image_path,
-        target_size=(224,224)
+        target_size=(224, 224)
     )
 
-    image = tf.keras.utils.img_to_array(image)
+    image_array = tf.keras.utils.img_to_array(image)
 
-    image_batch = np.expand_dims(image, axis=0)
-
-    # ------------------------------
-    # Build Grad-CAM model
-    # ------------------------------
-
-    feature_extractor = tf.keras.Model(
-        inputs=model.inputs,
-        outputs=model.get_layer(LAST_CONV_LAYER).output
+    image_batch = np.expand_dims(
+        image_array,
+        axis=0
     )
 
-    classifier_input = tf.keras.Input(
-        shape=feature_extractor.output.shape[1:]
+
+    # -----------------------------------------------------
+    # Apply the same Rescaling used by the model
+    # -----------------------------------------------------
+
+    rescaled_image = model.layers[1](
+        image_batch
     )
 
-    x = classifier_input
 
-    for layer_name in [
-        "max_pooling2d_1",
-        "flatten",
-        "dense",
-        "dropout",
-        "dense_1"
-    ]:
-        x = model.get_layer(layer_name)(x)
+    # -----------------------------------------------------
+    # Build feature model INSIDE MobileNetV2
+    # -----------------------------------------------------
 
-    classifier = tf.keras.Model(classifier_input, x)
+    feature_model = tf.keras.models.Model(
+        inputs=mobilenet.input,
+        outputs=[
+            target_layer.output,
+            mobilenet.output
+        ]
+    )
 
-    # ------------------------------
-    # Compute gradients
-    # ------------------------------
+
+    # -----------------------------------------------------
+    # Calculate gradients
+    # -----------------------------------------------------
 
     with tf.GradientTape() as tape:
 
-        conv_features = feature_extractor(image_batch)
+        conv_outputs, mobilenet_output = feature_model(
+            rescaled_image,
+            training=False
+        )
 
-        tape.watch(conv_features)
+        # GlobalAveragePooling
+        x = model.layers[3](
+            mobilenet_output
+        )
 
-        predictions = classifier(conv_features)
+        # Dropout
+        x = model.layers[4](
+            x,
+            training=False
+        )
 
-        class_index = tf.argmax(predictions[0])
+        # Final Dense layer
+        predictions = model.layers[5](
+            x
+        )
 
-        score = predictions[:, class_index]
+        predicted_class = tf.argmax(
+            predictions[0]
+        )
 
-    gradients = tape.gradient(score, conv_features)
+        class_score = predictions[
+            0,
+            predicted_class
+        ]
 
-    pooled_grads = tf.reduce_mean(
-        gradients,
-        axis=(0,1,2)
+    # -----------------------------------------------------
+    # Gradients
+    # -----------------------------------------------------
+
+    gradients = tape.gradient(
+        class_score,
+        conv_outputs
     )
 
-    conv_features = conv_features[0].numpy()
 
-    pooled_grads = pooled_grads.numpy()
+    # -----------------------------------------------------
+    # Global average pooling of gradients
+    # -----------------------------------------------------
 
-    for i in range(conv_features.shape[-1]):
-        conv_features[:,:,i] *= pooled_grads[i]
+    pooled_gradients = tf.reduce_mean(
+        gradients,
+        axis=(0, 1, 2)
+    )
 
-    heatmap = np.mean(conv_features, axis=-1)
 
-    heatmap = np.maximum(heatmap,0)
+    # -----------------------------------------------------
+    # Get feature map
+    # -----------------------------------------------------
 
-    if heatmap.max()>0:
-        heatmap /= heatmap.max()
+    conv_outputs = conv_outputs[0]
+
+    pooled_gradients = pooled_gradients.numpy()
+
+    conv_outputs = conv_outputs.numpy()
+
+
+    # -----------------------------------------------------
+    # Weight feature maps
+    # -----------------------------------------------------
+
+    for i in range(
+        conv_outputs.shape[-1]
+    ):
+
+        conv_outputs[:, :, i] *= (
+            pooled_gradients[i]
+        )
+
+
+    # -----------------------------------------------------
+    # Generate heatmap
+    # -----------------------------------------------------
+
+    heatmap = np.mean(
+        conv_outputs,
+        axis=-1
+    )
+
+    heatmap = np.maximum(
+        heatmap,
+        0
+    )
+
+
+    if np.max(heatmap) > 0:
+
+        heatmap /= np.max(
+            heatmap
+        )
+
+
+    # -----------------------------------------------------
+    # Resize heatmap
+    # -----------------------------------------------------
 
     heatmap = cv2.resize(
         heatmap,
-        (224,224)
+        (224, 224)
     )
 
-    heatmap_uint8 = np.uint8(255*heatmap)
+
+    # -----------------------------------------------------
+    # Convert to color heatmap
+    # -----------------------------------------------------
+
+    heatmap_uint8 = np.uint8(
+        255 * heatmap
+    )
 
     colored_heatmap = cv2.applyColorMap(
         heatmap_uint8,
         cv2.COLORMAP_JET
     )
 
+
+    # -----------------------------------------------------
+    # Save heatmap
+    # -----------------------------------------------------
+
     cv2.imwrite(
         heatmap_save_path,
         colored_heatmap
     )
 
-    original = cv2.imread(image_path)
+
+    # -----------------------------------------------------
+    # Load original image
+    # -----------------------------------------------------
+
+    original = cv2.imread(
+        image_path
+    )
 
     original = cv2.resize(
         original,
-        (224,224)
+        (224, 224)
     )
+
+
+    # -----------------------------------------------------
+    # Create overlay
+    # -----------------------------------------------------
 
     overlay = cv2.addWeighted(
         original,
@@ -132,9 +246,18 @@ def generate_gradcam(image_path,
         0
     )
 
+
+    # -----------------------------------------------------
+    # Save overlay
+    # -----------------------------------------------------
+
     cv2.imwrite(
         overlay_save_path,
         overlay
     )
 
-    return heatmap_save_path, overlay_save_path
+
+    return (
+        heatmap_save_path,
+        overlay_save_path
+    )

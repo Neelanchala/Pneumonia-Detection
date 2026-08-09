@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_file, redirect
 import os
 from datetime import datetime
+import traceback
 
 from predict import predict_image
 from gradcam import generate_gradcam
@@ -16,9 +17,7 @@ from database import (
     delete_report
 )
 
-
 app = Flask(__name__)
-
 
 # ============================================================
 # FOLDERS
@@ -29,12 +28,10 @@ HEATMAP_FOLDER = "static/heatmaps"
 OVERLAY_FOLDER = "static/overlays"
 REPORT_FOLDER = "reports"
 
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(HEATMAP_FOLDER, exist_ok=True)
 os.makedirs(OVERLAY_FOLDER, exist_ok=True)
 os.makedirs(REPORT_FOLDER, exist_ok=True)
-
 
 # Create database when application starts
 create_database()
@@ -46,7 +43,6 @@ create_database()
 
 @app.route("/")
 def home():
-
     return render_template("index.html")
 
 
@@ -57,27 +53,21 @@ def home():
 @app.route("/upload", methods=["POST"])
 def upload():
 
-    # --------------------------------------------------------
-    # Check uploaded file
-    # --------------------------------------------------------
+    print("\n========== UPLOAD STARTED ==========")
 
     if "image" not in request.files:
-
+        print("ERROR: image not found")
         return "No file selected"
-
 
     file = request.files["image"]
 
-
     if file.filename == "":
-
+        print("ERROR: empty filename")
         return "No file selected"
 
+    print("1. Image received:", file.filename)
 
-    # --------------------------------------------------------
-    # Save uploaded image
-    # --------------------------------------------------------
-
+    # Save image
     image_path = os.path.join(
         UPLOAD_FOLDER,
         file.filename
@@ -85,54 +75,29 @@ def upload():
 
     file.save(image_path)
 
+    print("2. Image saved:", image_path)
 
-    # --------------------------------------------------------
     # Patient information
-    # --------------------------------------------------------
+    patient_name = request.form.get("patient_name", "")
+    patient_id = request.form.get("patient_id", "")
+    age = request.form.get("age", "")
+    gender = request.form.get("gender", "")
+    doctor_name = request.form.get("doctor_name", "")
+    hospital = request.form.get("hospital", "")
 
-    patient_name = request.form.get(
-        "patient_name",
-        ""
-    )
+    print("3. Patient information received")
 
-    patient_id = request.form.get(
-        "patient_id",
-        ""
-    )
-
-    age = request.form.get(
-        "age",
-        ""
-    )
-
-    gender = request.form.get(
-        "gender",
-        ""
-    )
-
-    doctor_name = request.form.get(
-        "doctor_name",
-        ""
-    )
-
-    hospital = request.form.get(
-        "hospital",
-        ""
-    )
-
-
-    # --------------------------------------------------------
     # Prediction
-    # --------------------------------------------------------
+    print("4. Starting prediction...")
 
-    prediction, confidence = predict_image(
-        image_path
-    )
+    prediction, confidence = predict_image(image_path)
 
+    print("5. Prediction completed:")
+    print("   Prediction:", prediction)
+    print("   Confidence:", confidence)
 
-    # --------------------------------------------------------
     # Grad-CAM
-    # --------------------------------------------------------
+    print("6. Starting Grad-CAM...")
 
     heatmap_path = os.path.join(
         HEATMAP_FOLDER,
@@ -144,129 +109,83 @@ def upload():
         "overlay.jpg"
     )
 
-
     generate_gradcam(
         image_path,
         heatmap_path,
         overlay_path
     )
 
+    print("7. Grad-CAM completed")
 
-    # --------------------------------------------------------
-    # Generate PDF report
-    # --------------------------------------------------------
+    # PDF
+    print("8. Starting PDF generation...")
 
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
-    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    report_filename = (
-        f"AI_Report_{timestamp}.pdf"
-    )
+    report_filename = f"AI_Report_{timestamp}.pdf"
 
     report_path = os.path.join(
         REPORT_FOLDER,
         report_filename
     )
 
-
     generate_report(
-
         output_path=report_path,
-
         patient_name=patient_name,
-
         patient_id=patient_id,
-
         age=age,
-
         gender=gender,
-
         doctor_name=doctor_name,
-
         hospital=hospital,
-
         prediction=prediction,
-
         confidence=confidence * 100,
-
         original_image=image_path,
-
         heatmap_image=heatmap_path,
-
         overlay_image=overlay_path
-
     )
 
+    print("9. PDF generated")
 
-    # --------------------------------------------------------
-    # Save report information to database
-    # --------------------------------------------------------
+    # Database
+    print("10. Saving report to database...")
 
     save_report(
-
         patient_name,
-
         patient_id,
-
         age,
-
         gender,
-
         doctor_name,
-
         hospital,
-
         prediction,
-
         round(confidence * 100, 2),
-
         image_path,
-
         heatmap_path,
-
         overlay_path,
-
         report_path
-
     )
 
+    print("11. Database save completed")
 
-    # --------------------------------------------------------
-    # Show result page
-    # --------------------------------------------------------
+    print("========== UPLOAD FINISHED ==========\n")
 
     return render_template(
-
         "result.html",
 
         prediction=prediction,
-
-        confidence=round(
-            confidence * 100,
-            2
-        ),
+        confidence=round(confidence * 100, 2),
 
         patient_name=patient_name,
-
         patient_id=patient_id,
-
         age=age,
-
         gender=gender,
-
         doctor_name=doctor_name,
-
         hospital=hospital,
 
         original=image_path,
-
         heatmap=heatmap_path,
-
         overlay=overlay_path,
 
         report=report_filename
-
     )
 
 
@@ -282,18 +201,12 @@ def download_report(filename):
         filename
     )
 
-
     if not os.path.exists(report_path):
-
         return "Report not found"
 
-
     return send_file(
-
         report_path,
-
         as_attachment=True
-
     )
 
 
@@ -309,26 +222,15 @@ def history():
         ""
     ).strip()
 
-
     if keyword:
-
-        reports = search_reports(
-            keyword
-        )
-
+        reports = search_reports(keyword)
     else:
-
         reports = get_all_reports()
 
-
     return render_template(
-
         "history.html",
-
         reports=reports,
-
         search=keyword
-
     )
 
 
@@ -343,18 +245,12 @@ def report_details(report_id):
         report_id
     )
 
-
     if report is None:
-
         return "Report not found"
 
-
     return render_template(
-
         "report_details.html",
-
         report=report
-
     )
 
 
@@ -368,7 +264,6 @@ def delete(report_id):
     delete_report(
         report_id
     )
-
 
     return redirect(
         "/history"
@@ -386,16 +281,23 @@ def dashboard():
 
     reports = get_all_reports()[:5]
 
-
     return render_template(
-
         "dashboard.html",
-
         stats=stats,
-
         reports=reports
-
     )
+
+
+# ============================================================
+# ERROR HANDLER
+# ============================================================
+
+@app.errorhandler(Exception)
+def handle_error(e):
+
+    traceback.print_exc()
+
+    return f"ERROR: {str(e)}", 500
 
 
 # ============================================================
@@ -403,8 +305,9 @@ def dashboard():
 # ============================================================
 
 if __name__ == "__main__":
+
     app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
+        host="127.0.0.1",
+        port=10000,
         debug=False
     )
