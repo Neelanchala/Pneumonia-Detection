@@ -1,7 +1,5 @@
 import sqlite3
-import streamlit as st
 
-st.write("DATABASE VERSION: SESSION-AWARE")
 
 DATABASE = "patients.db"
 
@@ -387,6 +385,4 @@ def delete_report(session_id, report_id):
 
 
 
-print("DATABASE.PY LOADED - SESSION VERSION")
-print("get_all_reports:", get_all_reports)
-print("get_statistics:", get_statistics)
+
