@@ -1,4 +1,3 @@
-
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -75,7 +74,27 @@ os.makedirs(HEATMAP_FOLDER, exist_ok=True)
 os.makedirs(OVERLAY_FOLDER, exist_ok=True)
 os.makedirs(REPORT_FOLDER, exist_ok=True)
 
+
+# ============================================================
+# CREATE DATABASE
+# ============================================================
+
 create_database()
+
+
+# ============================================================
+# SESSION ID
+# ============================================================
+# Each visitor gets a unique session ID.
+# This prevents one visitor from seeing another visitor's
+# patient history and dashboard records.
+
+if "session_id" not in st.session_state:
+
+    st.session_state.session_id = uuid.uuid4().hex
+
+
+SESSION_ID = st.session_state.session_id
 
 
 # ============================================================
@@ -171,7 +190,10 @@ def generate_gradcam(
         axis=0
     )
 
-    # Find MobileNetV2 inside the model
+    # --------------------------------------------------------
+    # FIND MOBILENETV2
+    # --------------------------------------------------------
+
     mobilenet = None
 
     for layer in model.layers:
@@ -179,6 +201,7 @@ def generate_gradcam(
         if "mobilenetv2" in layer.name.lower():
 
             mobilenet = layer
+
             break
 
     if mobilenet is None:
@@ -187,7 +210,10 @@ def generate_gradcam(
             "MobileNetV2 layer was not found in the model."
         )
 
-    # Find target convolution layer
+    # --------------------------------------------------------
+    # FIND TARGET CONVOLUTION LAYER
+    # --------------------------------------------------------
+
     try:
 
         target_layer = mobilenet.get_layer(
@@ -196,7 +222,6 @@ def generate_gradcam(
 
     except Exception:
 
-        # fallback: find the last convolution-like layer
         target_layer = None
 
         for layer in reversed(
@@ -206,6 +231,7 @@ def generate_gradcam(
             if len(layer.output.shape) == 4:
 
                 target_layer = layer
+
                 break
 
         if target_layer is None:
@@ -214,7 +240,10 @@ def generate_gradcam(
                 "Could not find a suitable Grad-CAM layer."
             )
 
-    # Apply layers before MobileNetV2
+    # --------------------------------------------------------
+    # APPLY LAYERS BEFORE MOBILENETV2
+    # --------------------------------------------------------
+
     mobilenet_index = model.layers.index(
         mobilenet
     )
@@ -236,6 +265,10 @@ def generate_gradcam(
             processed_image
         )
 
+    # --------------------------------------------------------
+    # FEATURE MODEL
+    # --------------------------------------------------------
+
     feature_model = tf.keras.models.Model(
         inputs=mobilenet.input,
         outputs=[
@@ -243,6 +276,10 @@ def generate_gradcam(
             mobilenet.output
         ]
     )
+
+    # --------------------------------------------------------
+    # GRADIENT TAPE
+    # --------------------------------------------------------
 
     with tf.GradientTape() as tape:
 
@@ -253,7 +290,10 @@ def generate_gradcam(
 
         x = mobilenet_output
 
-        # Apply layers after MobileNetV2
+        # ----------------------------------------------------
+        # APPLY LAYERS AFTER MOBILENETV2
+        # ----------------------------------------------------
+
         for layer in model.layers[
             mobilenet_index + 1:
         ]:
@@ -277,7 +317,9 @@ def generate_gradcam(
 
             else:
 
-                x = layer(x)
+                x = layer(
+                    x
+                )
 
         predictions = x
 
@@ -289,6 +331,10 @@ def generate_gradcam(
             0,
             predicted_class
         ]
+
+    # --------------------------------------------------------
+    # CALCULATE GRADIENTS
+    # --------------------------------------------------------
 
     gradients = tape.gradient(
         class_score,
@@ -310,6 +356,10 @@ def generate_gradcam(
         conv_outputs.numpy()
     )
 
+    # --------------------------------------------------------
+    # WEIGHT FEATURE MAPS
+    # --------------------------------------------------------
+
     for i in range(
         conv_outputs.shape[-1]
     ):
@@ -317,6 +367,10 @@ def generate_gradcam(
         conv_outputs[:, :, i] *= (
             pooled_gradients[i]
         )
+
+    # --------------------------------------------------------
+    # CREATE HEATMAP
+    # --------------------------------------------------------
 
     heatmap = np.mean(
         conv_outputs,
@@ -343,15 +397,27 @@ def generate_gradcam(
         255 * heatmap
     )
 
+    # --------------------------------------------------------
+    # APPLY COLOR MAP
+    # --------------------------------------------------------
+
     colored_heatmap = cv2.applyColorMap(
         heatmap_uint8,
         cv2.COLORMAP_JET
     )
 
+    # --------------------------------------------------------
+    # SAVE HEATMAP
+    # --------------------------------------------------------
+
     cv2.imwrite(
         heatmap_path,
         colored_heatmap
     )
+
+    # --------------------------------------------------------
+    # CREATE OVERLAY
+    # --------------------------------------------------------
 
     original = cv2.imread(
         image_path
@@ -369,6 +435,10 @@ def generate_gradcam(
         0.4,
         0
     )
+
+    # --------------------------------------------------------
+    # SAVE OVERLAY
+    # --------------------------------------------------------
 
     cv2.imwrite(
         overlay_path,
@@ -550,10 +620,20 @@ elif page == "🔬 Analyze X-ray":
 
             unique_id = uuid.uuid4().hex
 
+            # ------------------------------------------------
+            # SAVE UPLOADED IMAGE
+            # ------------------------------------------------
+
+            image_extension = (
+                uploaded_file.name
+                .split(".")[-1]
+                .lower()
+            )
+
             image_filename = (
                 unique_id
                 + "_xray."
-                + uploaded_file.name.split(".")[-1]
+                + image_extension
             )
 
             image_path = os.path.join(
@@ -570,15 +650,27 @@ elif page == "🔬 Analyze X-ray":
                     uploaded_file.getbuffer()
                 )
 
+            # ------------------------------------------------
+            # HEATMAP PATH
+            # ------------------------------------------------
+
             heatmap_path = os.path.join(
                 HEATMAP_FOLDER,
                 unique_id + "_heatmap.jpg"
             )
 
+            # ------------------------------------------------
+            # OVERLAY PATH
+            # ------------------------------------------------
+
             overlay_path = os.path.join(
                 OVERLAY_FOLDER,
                 unique_id + "_overlay.jpg"
             )
+
+            # ------------------------------------------------
+            # PDF REPORT PATH
+            # ------------------------------------------------
 
             report_filename = (
                 "AI_Report_"
@@ -597,6 +689,10 @@ elif page == "🔬 Analyze X-ray":
 
             try:
 
+                # ============================================
+                # CNN PREDICTION
+                # ============================================
+
                 with st.spinner(
                     "Running CNN prediction..."
                 ):
@@ -607,6 +703,10 @@ elif page == "🔬 Analyze X-ray":
                         )
                     )
 
+                # ============================================
+                # GRAD-CAM
+                # ============================================
+
                 with st.spinner(
                     "Generating Grad-CAM..."
                 ):
@@ -616,6 +716,10 @@ elif page == "🔬 Analyze X-ray":
                         heatmap_path,
                         overlay_path
                     )
+
+                # ============================================
+                # PDF REPORT
+                # ============================================
 
                 with st.spinner(
                     "Generating PDF report..."
@@ -636,7 +740,12 @@ elif page == "🔬 Analyze X-ray":
                         overlay_image=overlay_path
                     )
 
+                # ============================================
+                # SAVE TO DATABASE
+                # ============================================
+
                 save_report(
+                    SESSION_ID,
                     patient_name,
                     patient_id,
                     age,
@@ -658,9 +767,9 @@ elif page == "🔬 Analyze X-ray":
                     "Analysis completed successfully."
                 )
 
-                # ------------------------------------------------
+                # ============================================
                 # RESULT
-                # ------------------------------------------------
+                # ============================================
 
                 st.divider()
 
@@ -691,9 +800,9 @@ elif page == "🔬 Analyze X-ray":
                         f"{confidence * 100:.2f}%"
                     )
 
-                # ------------------------------------------------
+                # ============================================
                 # VISUALIZATIONS
-                # ------------------------------------------------
+                # ============================================
 
                 st.subheader(
                     "🔥 Grad-CAM Visualization"
@@ -722,9 +831,9 @@ elif page == "🔬 Analyze X-ray":
                         caption="Attention Overlay"
                     )
 
-                # ------------------------------------------------
-                # PDF
-                # ------------------------------------------------
+                # ============================================
+                # PDF DOWNLOAD
+                # ============================================
 
                 st.subheader(
                     "📄 PDF Report"
@@ -763,23 +872,39 @@ elif page == "📋 Patient History":
         "📋 Patient History"
     )
 
+    st.info(
+        "Your history is private to this browser session. "
+        "Other visitors cannot see these records."
+    )
+
     search = st.text_input(
         "Search by patient name or patient ID"
     )
 
+    # --------------------------------------------------------
+    # SEARCH CURRENT SESSION ONLY
+    # --------------------------------------------------------
+
     if search.strip():
 
         reports = search_reports(
+            SESSION_ID,
             search.strip()
         )
 
     else:
 
-        reports = get_all_reports()
+        reports = get_all_reports(
+            SESSION_ID
+        )
 
     st.write(
         f"Total records: {len(reports)}"
     )
+
+    # --------------------------------------------------------
+    # DISPLAY REPORTS
+    # --------------------------------------------------------
 
     for report in reports:
 
@@ -832,6 +957,10 @@ elif page == "📋 Patient History":
                     f"{report['confidence']:.2f}%"
                 )
 
+            # ------------------------------------------------
+            # ORIGINAL X-RAY
+            # ------------------------------------------------
+
             if os.path.exists(
                 report["original_image"]
             ):
@@ -841,6 +970,10 @@ elif page == "📋 Patient History":
                     caption="Original X-ray"
                 )
 
+            # ------------------------------------------------
+            # GRAD-CAM OVERLAY
+            # ------------------------------------------------
+
             if os.path.exists(
                 report["overlay_image"]
             ):
@@ -849,6 +982,10 @@ elif page == "📋 Patient History":
                     report["overlay_image"],
                     caption="Grad-CAM Overlay"
                 )
+
+            # ------------------------------------------------
+            # PDF DOWNLOAD
+            # ------------------------------------------------
 
             if os.path.exists(
                 report["report_path"]
@@ -869,13 +1006,22 @@ elif page == "📋 Patient History":
                         key=f"download_{report_id}"
                     )
 
+            # ------------------------------------------------
+            # DELETE REPORT
+            # ------------------------------------------------
+
             if st.button(
                 "🗑️ Delete Report",
                 key=f"delete_{report_id}"
             ):
 
                 delete_report(
+                    SESSION_ID,
                     report_id
+                )
+
+                st.success(
+                    "Report deleted."
                 )
 
                 st.rerun()
@@ -885,16 +1031,23 @@ elif page == "📋 Patient History":
 # DASHBOARD
 # ============================================================
 
-# ============================================================
-# DASHBOARD
-# ============================================================
-
 elif page == "📊 Dashboard":
 
-    st.title("📊 Dashboard")
+    st.title(
+        "📊 Dashboard"
+    )
 
-    # Get statistics
-    stats = get_statistics()
+    st.info(
+        "Dashboard statistics are private to this browser session."
+    )
+
+    # --------------------------------------------------------
+    # GET CURRENT SESSION STATISTICS
+    # --------------------------------------------------------
+
+    stats = get_statistics(
+        SESSION_ID
+    )
 
     # --------------------------------------------------------
     # METRIC CARDS
@@ -903,24 +1056,28 @@ elif page == "📊 Dashboard":
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
+
         st.metric(
             "Total Reports",
             stats["total"]
         )
 
     with col2:
+
         st.metric(
             "Normal",
             stats["normal"]
         )
 
     with col3:
+
         st.metric(
             "Pneumonia",
             stats["pneumonia"]
         )
 
     with col4:
+
         st.metric(
             "Average Confidence",
             f"{stats['average']:.2f}%"
@@ -932,26 +1089,37 @@ elif page == "📊 Dashboard":
     # CHARTS
     # --------------------------------------------------------
 
-    st.subheader("📈 Prediction Analysis")
+    st.subheader(
+        "📈 Prediction Analysis"
+    )
 
     chart_col1, chart_col2 = st.columns(2)
 
-    # --------------------------------------------------------
+    # ========================================================
     # PIE CHART
-    # --------------------------------------------------------
+    # ========================================================
 
     with chart_col1:
 
-        st.markdown("### 🥧 Prediction Distribution")
+        st.markdown(
+            "### 🥧 Prediction Distribution"
+        )
 
-        normal_count = int(stats["normal"])
-        pneumonia_count = int(stats["pneumonia"])
+        normal_count = int(
+            stats["normal"]
+        )
+
+        pneumonia_count = int(
+            stats["pneumonia"]
+        )
 
         pie_data = {
+
             "labels": [
                 "Normal",
                 "Pneumonia"
             ],
+
             "values": [
                 normal_count,
                 pneumonia_count
@@ -959,38 +1127,51 @@ elif page == "📊 Dashboard":
         }
 
         pie_chart = {
+
             "mark": {
                 "type": "arc",
                 "innerRadius": 0
             },
+
             "encoding": {
+
                 "theta": {
                     "field": "values",
                     "type": "quantitative"
                 },
+
                 "color": {
+
                     "field": "labels",
+
                     "type": "nominal",
+
                     "scale": {
+
                         "domain": [
                             "Normal",
                             "Pneumonia"
                         ],
+
                         "range": [
                             "#2E8B57",
                             "#D9534F"
                         ]
                     },
+
                     "legend": {
                         "title": "Prediction"
                     }
                 },
+
                 "tooltip": [
+
                     {
                         "field": "labels",
                         "type": "nominal",
                         "title": "Prediction"
                     },
+
                     {
                         "field": "values",
                         "type": "quantitative",
@@ -1000,73 +1181,118 @@ elif page == "📊 Dashboard":
             }
         }
 
-        st.vega_lite_chart(
-            pie_data,
-            pie_chart,
-            use_container_width=True
-        )
+        # ----------------------------------------------------
+        # HANDLE EMPTY DATASET
+        # ----------------------------------------------------
 
-    # --------------------------------------------------------
+        if stats["total"] > 0:
+
+            st.vega_lite_chart(
+                pie_data,
+                pie_chart,
+                use_container_width=True
+            )
+
+        else:
+
+            st.info(
+                "Analyze an X-ray to generate the prediction chart."
+            )
+
+    # ========================================================
     # CONFIDENCE CHART
-    # --------------------------------------------------------
+    # ========================================================
 
     with chart_col2:
 
-        st.markdown("### 🎯 Confidence Summary")
+        st.markdown(
+            "### 🎯 Confidence Summary"
+        )
 
         confidence_data = {
+
             "Metric": [
                 "Average Confidence"
             ],
+
             "Confidence": [
                 float(stats["average"])
             ]
         }
 
         confidence_chart = {
+
             "mark": "bar",
+
             "encoding": {
+
                 "x": {
+
                     "field": "Metric",
+
                     "type": "nominal",
+
                     "title": ""
                 },
+
                 "y": {
+
                     "field": "Confidence",
+
                     "type": "quantitative",
+
                     "title": "Confidence (%)",
+
                     "scale": {
+
                         "domain": [
                             0,
                             100
                         ]
                     }
                 },
+
                 "tooltip": [
+
                     {
+
                         "field": "Confidence",
+
                         "type": "quantitative",
+
                         "title": "Confidence (%)"
                     }
                 ]
             }
         }
 
-        st.vega_lite_chart(
-            confidence_data,
-            confidence_chart,
-            use_container_width=True
-        )
+        if stats["total"] > 0:
+
+            st.vega_lite_chart(
+                confidence_data,
+                confidence_chart,
+                use_container_width=True
+            )
+
+        else:
+
+            st.info(
+                "Analyze an X-ray to generate the confidence chart."
+            )
 
     st.divider()
 
-    # --------------------------------------------------------
+    # ========================================================
     # RECENT REPORTS
-    # --------------------------------------------------------
+    # ========================================================
 
-    st.subheader("📋 Recent Reports")
+    st.subheader(
+        "📋 Recent Reports"
+    )
 
-    reports = get_all_reports()
+    reports = get_all_reports(
+        SESSION_ID
+    )
 
     if reports:
 
@@ -1075,11 +1301,26 @@ elif page == "📊 Dashboard":
         for report in reports[:10]:
 
             recent_data.append({
-                "Patient": report["patient_name"],
-                "Patient ID": report["patient_id"],
-                "Prediction": report["prediction"],
-                "Confidence": f"{report['confidence']:.2f}%",
-                "Date": report["created_at"]
+
+                "Patient": report[
+                    "patient_name"
+                ],
+
+                "Patient ID": report[
+                    "patient_id"
+                ],
+
+                "Prediction": report[
+                    "prediction"
+                ],
+
+                "Confidence": (
+                    f"{report['confidence']:.2f}%"
+                ),
+
+                "Date": report[
+                    "created_at"
+                ]
             })
 
         st.dataframe(
@@ -1093,6 +1334,7 @@ elif page == "📊 Dashboard":
         st.info(
             "No reports available yet."
         )
+
 
 # ============================================================
 # DISCLAIMER
