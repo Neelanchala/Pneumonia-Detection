@@ -885,39 +885,42 @@ elif page == "📋 Patient History":
 # DASHBOARD
 # ============================================================
 
+# ============================================================
+# DASHBOARD
+# ============================================================
+
 elif page == "📊 Dashboard":
 
-    st.title(
-        "📊 Dashboard"
-    )
+    st.title("📊 Dashboard")
 
+    # Get statistics
     stats = get_statistics()
+
+    # --------------------------------------------------------
+    # METRIC CARDS
+    # --------------------------------------------------------
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-
         st.metric(
             "Total Reports",
             stats["total"]
         )
 
     with col2:
-
         st.metric(
             "Normal",
             stats["normal"]
         )
 
     with col3:
-
         st.metric(
             "Pneumonia",
             stats["pneumonia"]
         )
 
     with col4:
-
         st.metric(
             "Average Confidence",
             f"{stats['average']:.2f}%"
@@ -925,28 +928,171 @@ elif page == "📊 Dashboard":
 
     st.divider()
 
+    # --------------------------------------------------------
+    # CHARTS
+    # --------------------------------------------------------
+
+    st.subheader("📈 Prediction Analysis")
+
+    chart_col1, chart_col2 = st.columns(2)
+
+    # --------------------------------------------------------
+    # PIE CHART
+    # --------------------------------------------------------
+
+    with chart_col1:
+
+        st.markdown("### 🥧 Prediction Distribution")
+
+        normal_count = int(stats["normal"])
+        pneumonia_count = int(stats["pneumonia"])
+
+        pie_data = {
+            "labels": [
+                "Normal",
+                "Pneumonia"
+            ],
+            "values": [
+                normal_count,
+                pneumonia_count
+            ]
+        }
+
+        pie_chart = {
+            "mark": {
+                "type": "arc",
+                "innerRadius": 0
+            },
+            "encoding": {
+                "theta": {
+                    "field": "values",
+                    "type": "quantitative"
+                },
+                "color": {
+                    "field": "labels",
+                    "type": "nominal",
+                    "scale": {
+                        "domain": [
+                            "Normal",
+                            "Pneumonia"
+                        ],
+                        "range": [
+                            "#2E8B57",
+                            "#D9534F"
+                        ]
+                    },
+                    "legend": {
+                        "title": "Prediction"
+                    }
+                },
+                "tooltip": [
+                    {
+                        "field": "labels",
+                        "type": "nominal",
+                        "title": "Prediction"
+                    },
+                    {
+                        "field": "values",
+                        "type": "quantitative",
+                        "title": "Reports"
+                    }
+                ]
+            }
+        }
+
+        st.vega_lite_chart(
+            pie_data,
+            pie_chart,
+            use_container_width=True
+        )
+
+    # --------------------------------------------------------
+    # CONFIDENCE CHART
+    # --------------------------------------------------------
+
+    with chart_col2:
+
+        st.markdown("### 🎯 Confidence Summary")
+
+        confidence_data = {
+            "Metric": [
+                "Average Confidence"
+            ],
+            "Confidence": [
+                float(stats["average"])
+            ]
+        }
+
+        confidence_chart = {
+            "mark": "bar",
+            "encoding": {
+                "x": {
+                    "field": "Metric",
+                    "type": "nominal",
+                    "title": ""
+                },
+                "y": {
+                    "field": "Confidence",
+                    "type": "quantitative",
+                    "title": "Confidence (%)",
+                    "scale": {
+                        "domain": [
+                            0,
+                            100
+                        ]
+                    }
+                },
+                "tooltip": [
+                    {
+                        "field": "Confidence",
+                        "type": "quantitative",
+                        "title": "Confidence (%)"
+                    }
+                ]
+            }
+        }
+
+        st.vega_lite_chart(
+            confidence_data,
+            confidence_chart,
+            use_container_width=True
+        )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # RECENT REPORTS
+    # --------------------------------------------------------
+
+    st.subheader("📋 Recent Reports")
+
     reports = get_all_reports()
 
     if reports:
 
-        st.subheader(
-            "Recent Reports"
+        recent_data = []
+
+        for report in reports[:10]:
+
+            recent_data.append({
+                "Patient": report["patient_name"],
+                "Patient ID": report["patient_id"],
+                "Prediction": report["prediction"],
+                "Confidence": f"{report['confidence']:.2f}%",
+                "Date": report["created_at"]
+            })
+
+        st.dataframe(
+            recent_data,
+            use_container_width=True,
+            hide_index=True
         )
-
-        for report in reports[:5]:
-
-            st.write(
-                f"**{report['patient_name']}** — "
-                f"{report['prediction']} — "
-                f"{report['confidence']:.2f}%"
-            )
 
     else:
 
         st.info(
             "No reports available yet."
         )
-
 
 # ============================================================
 # DISCLAIMER
