@@ -10,11 +10,13 @@ def create_database():
 
     cursor = conn.cursor()
 
+    # Create table if it doesn't exist
     cursor.execute("""
-
     CREATE TABLE IF NOT EXISTS reports(
 
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        session_id TEXT,
 
         patient_name TEXT,
 
@@ -43,15 +45,38 @@ def create_database():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
     )
-
     """)
+
+    # --------------------------------------------------------
+    # ADD session_id TO EXISTING DATABASE
+    # --------------------------------------------------------
+
+    cursor.execute("PRAGMA table_info(reports)")
+
+    columns = [
+        row[1]
+        for row in cursor.fetchall()
+    ]
+
+    if "session_id" not in columns:
+
+        cursor.execute("""
+            ALTER TABLE reports
+            ADD COLUMN session_id TEXT
+        """)
 
     conn.commit()
 
     conn.close()
 
 
+# ============================================================
+# SAVE REPORT
+# ============================================================
+
 def save_report(
+
+    session_id,
 
     patient_name,
     patient_id,
@@ -73,39 +98,64 @@ def save_report(
     cursor = conn.cursor()
 
     cursor.execute("""
-
     INSERT INTO reports(
 
+        session_id,
+
         patient_name,
+
         patient_id,
+
         age,
+
         gender,
+
         doctor_name,
+
         hospital,
+
         prediction,
+
         confidence,
+
         original_image,
+
         heatmap_image,
+
         overlay_image,
+
         report_path
 
     )
 
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
 
-    """,(
+    """, (
+
+        session_id,
 
         patient_name,
+
         patient_id,
+
         age,
+
         gender,
+
         doctor_name,
+
         hospital,
+
         prediction,
+
         confidence,
+
         original_image,
+
         heatmap_image,
+
         overlay_image,
+
         report_path
 
     ))
@@ -114,7 +164,12 @@ def save_report(
 
     conn.close()
 
-def get_all_reports():
+
+# ============================================================
+# GET ALL REPORTS FOR CURRENT SESSION
+# ============================================================
+
+def get_all_reports(session_id):
 
     conn = sqlite3.connect(DATABASE)
 
@@ -123,14 +178,15 @@ def get_all_reports():
     cursor = conn.cursor()
 
     cursor.execute("""
-
         SELECT *
 
         FROM reports
 
+        WHERE session_id = ?
+
         ORDER BY id DESC
 
-    """)
+    """, (session_id,))
 
     reports = cursor.fetchall()
 
@@ -138,7 +194,12 @@ def get_all_reports():
 
     return reports
 
-def search_reports(keyword):
+
+# ============================================================
+# SEARCH REPORTS FOR CURRENT SESSION
+# ============================================================
+
+def search_reports(session_id, keyword):
 
     conn = sqlite3.connect(DATABASE)
 
@@ -147,20 +208,25 @@ def search_reports(keyword):
     cursor = conn.cursor()
 
     cursor.execute("""
-
         SELECT *
 
         FROM reports
 
-        WHERE
+        WHERE session_id = ?
+
+        AND (
 
             patient_name LIKE ?
 
             OR patient_id LIKE ?
 
+        )
+
         ORDER BY id DESC
 
     """, (
+
+        session_id,
 
         f"%{keyword}%",
 
@@ -174,7 +240,12 @@ def search_reports(keyword):
 
     return reports
 
-def get_report(report_id):
+
+# ============================================================
+# GET ONE REPORT
+# ============================================================
+
+def get_report(session_id, report_id):
 
     conn = sqlite3.connect(DATABASE)
 
@@ -183,14 +254,21 @@ def get_report(report_id):
     cursor = conn.cursor()
 
     cursor.execute("""
-
         SELECT *
 
         FROM reports
 
-        WHERE id=?
+        WHERE id = ?
 
-    """,(report_id,))
+        AND session_id = ?
+
+    """, (
+
+        report_id,
+
+        session_id
+
+    ))
 
     report = cursor.fetchone()
 
@@ -198,30 +276,66 @@ def get_report(report_id):
 
     return report
 
-def get_statistics():
+
+# ============================================================
+# STATISTICS FOR CURRENT SESSION
+# ============================================================
+
+def get_statistics(session_id):
 
     conn = sqlite3.connect(DATABASE)
 
-    conn.row_factory = sqlite3.Row
-
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM reports")
+    # Total
+    cursor.execute("""
+        SELECT COUNT(*)
+
+        FROM reports
+
+        WHERE session_id = ?
+
+    """, (session_id,))
+
     total = cursor.fetchone()[0]
 
-    cursor.execute(
-        "SELECT COUNT(*) FROM reports WHERE LOWER(prediction)='normal'"
-    )
+    # Normal
+    cursor.execute("""
+        SELECT COUNT(*)
+
+        FROM reports
+
+        WHERE session_id = ?
+
+        AND LOWER(prediction) = 'normal'
+
+    """, (session_id,))
+
     normal = cursor.fetchone()[0]
 
-    cursor.execute(
-        "SELECT COUNT(*) FROM reports WHERE LOWER(prediction)!='normal'"
-    )
+    # Pneumonia
+    cursor.execute("""
+        SELECT COUNT(*)
+
+        FROM reports
+
+        WHERE session_id = ?
+
+        AND LOWER(prediction) != 'normal'
+
+    """, (session_id,))
+
     pneumonia = cursor.fetchone()[0]
 
-    cursor.execute(
-        "SELECT AVG(confidence) FROM reports"
-    )
+    # Average confidence
+    cursor.execute("""
+        SELECT AVG(confidence)
+
+        FROM reports
+
+        WHERE session_id = ?
+
+    """, (session_id,))
 
     avg = cursor.fetchone()[0]
 
@@ -235,21 +349,35 @@ def get_statistics():
 
         "pneumonia": pneumonia,
 
-        "average": round(avg,2) if avg else 0
+        "average": round(avg, 2) if avg else 0
 
     }
 
 
-def delete_report(report_id):
+# ============================================================
+# DELETE REPORT
+# ============================================================
+
+def delete_report(session_id, report_id):
 
     conn = sqlite3.connect(DATABASE)
 
     cursor = conn.cursor()
 
-    cursor.execute(
-        "DELETE FROM reports WHERE id=?",
-        (report_id,)
-    )
+    cursor.execute("""
+        DELETE FROM reports
+
+        WHERE id = ?
+
+        AND session_id = ?
+
+    """, (
+
+        report_id,
+
+        session_id
+
+    ))
 
     conn.commit()
 
